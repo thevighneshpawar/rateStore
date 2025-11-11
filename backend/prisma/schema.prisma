@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,52 +16,65 @@ enum Role {
 }
 
 model User {
-  id           String         @id @default(cuid())
-  name         String
-  email        String         @unique
-  address      String?
-  passwordHash String
-  role         Role           @default(USER)
-  ratings      Rating[]
-  stores       Store[]        @relation("OwnerStores")
+  id            String         @id @default(cuid())
+  name          String         @db.VarChar(60)
+  email         String         @unique @db.VarChar(255)
+  address       String?        @db.VarChar(400)
+  passwordHash  String
+  role          Role           @default(USER)
+  ratings       Rating[]
+  stores        Store[]        @relation("OwnerStores")
   refreshTokens RefreshToken[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([name])
+  @@index([email])
+  @@index([address])
+  @@index([role])
 }
 
 model Store {
   id        String   @id @default(cuid())
   name      String
-  email     String?  @unique
-  address   String
-  owner     User?    @relation("OwnerStores", fields: [ownerId], references: [id])
+  email     String?  @unique @db.VarChar(255)
+  address   String   @db.VarChar(400)
+  owner     User?    @relation("OwnerStores", fields: [ownerId], references: [id], onDelete: SetNull)
   ownerId   String?
   ratings   Rating[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([address])
+  @@index([ownerId])
 }
 
 model Rating {
   id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  store     Store    @relation(fields: [storeId], references: [id])
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   storeId   String
-  value     Int
+  value     Int      @db.SmallInt // enforce 1–5 in app or via DB CHECK migration (see note)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, storeId])
-  @@check(value_gte_1, value >= 1)
-  @@check(value_lte_5, value <= 5)
+  @@index([storeId])
+  @@index([userId])
 }
 
 model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   revoked   Boolean  @default(false)
   createdAt DateTime @default(now())
   expiresAt DateTime
+
+  @@index([userId])
+  @@index([revoked])
+  @@index([expiresAt])
 }
